@@ -2,6 +2,7 @@
 #include <Log.h>
 #include <MqttPaho.h>
 #include <NanoAkka.h>
+#include <math.h>
 #include <stdio.h>
 #include <unistd.h>
 class Poller {
@@ -25,10 +26,12 @@ class Poller {
   }
 };
 
-template <class T>
-Cache<T>& newCache(Thread& t, uint32_t min, uint32_t max) {
-  auto cache = new Cache<T>(t, min, max);
-  return *cache;
+int scale(const int& js) {
+  float v = js;
+  v /= 32767.0;
+  v *= 3.141592653;
+  v = tanh(v);
+  return v * 90.0;
 }
 
 Log logger(2048);
@@ -55,7 +58,9 @@ int main(int argc, char** argv) {
   systemCpu >> mqtt.toTopic<std::string>("system/cpu");
 
   mqtt.fromTopic<int>("src/pcdell/js0/axis0") >>
-      newCache<int>(mainThread, 100, 1000) >>
+      Cache<int>::nw(mainThread, 100, 1000) >>
+      //      LambdaFlow<int, int>::nw([](const int& in) { return in; }) >>
+      LambdaFlow<int, int>::nw(scale) >>
       mqtt.toTopic<int>("dst/drive/stepper/angleTarget");
 
   mqtt.connected >> [](const bool& b) {
