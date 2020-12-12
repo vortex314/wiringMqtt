@@ -45,6 +45,7 @@ void MqttPaho::config(JsonObject& conf) {
 //
 void MqttPaho::init() {
   _clientId = dstPrefix;
+  subscriptions.push_back(dstPrefix + "#");
   INFO(" connection : %s ", _connection.c_str());
   state(MS_DISCONNECTED);
 
@@ -168,8 +169,7 @@ void MqttPaho::onConnectionLost(void* context, char* cause) {
 
 int MqttPaho::onMessage(void* context, char* topicName, int topicLen,
                         MQTTAsync_message* message) {
-    INFO(" receiving message %s[%d] context %X", topicName, topicLen,
-    context);
+  INFO(" receiving message %s[%d] context %X", topicName, topicLen, context);
   MqttPaho* me = (MqttPaho*)context;
   std::string msg((char*)message->payload, message->payloadlen);
   std::string topic(topicName, topicLen);
@@ -200,7 +200,10 @@ void MqttPaho::onConnectSuccess(void* context,
   MqttPaho* me = (MqttPaho*)context;
   me->state(MS_CONNECTED);
   INFO("MQTT_EVENT_CONNECTED to %s", me->_connection.c_str());
-  me->subscribe(me->dstPrefix + "#");
+  for (std::vector<std::string>::iterator it = me->subscriptions.begin();
+       it != me->subscriptions.end(); ++it) {
+    me->subscribe(*it);
+  }
 }
 
 void MqttPaho::onSubscribeSuccess(void* context,

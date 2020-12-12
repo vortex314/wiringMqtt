@@ -27,11 +27,14 @@ class Poller {
 };
 
 int scale(const int& js) {
-  float v = js;
-  v /= 32767.0;
-  v *= 3.141592653;
-  v = tanh(v);
-  return v * 90.0;
+  return (js * 90) / 32767;
+  /*  static int lastValue = 0;
+
+    if (js > 0) lastValue += 5;
+    if (js < 0) lastValue -= 5;
+    if (lastValue < -90) lastValue == -90;
+    if (lastValue > 90) lastValue = 90;
+    return lastValue;*/
 }
 
 Log logger(2048);
@@ -58,7 +61,7 @@ int main(int argc, char** argv) {
   systemCpu >> mqtt.toTopic<std::string>("system/cpu");
 
   mqtt.fromTopic<int>("src/pcdell/js0/axis0") >>
-      Cache<int>::nw(mainThread, 100, 1000) >>
+      Cache<int>::nw(mainThread, 100, 101) >>
       //      LambdaFlow<int, int>::nw([](const int& in) { return in; }) >>
       LambdaFlow<int, int>::nw(scale) >>
       mqtt.toTopic<int>("dst/drive/stepper/angleTarget");
