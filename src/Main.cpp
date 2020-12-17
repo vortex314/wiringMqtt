@@ -12,7 +12,7 @@ class Poller {
   std::vector<Requestable*> _requestables;
 
   Poller(Thread& thread, uint32_t interval)
-      : _clock(thread, 1, interval, true) {
+      : _clock(thread, interval, true, "main.poller") {
     _clock >> [&](const TimerMsg& t) {
       if (_requestables.size()) {
         _idx++;

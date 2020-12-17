@@ -1,4 +1,4 @@
-#include <../Common/Config.h>
+//#include <../Common/Config.h>
 #include <MqttPaho.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -18,8 +18,8 @@ const char* mqttConnectionStates[] = {"MS_CONNECTED", "MS_DISCONNECTED",
 //
 MqttPaho::MqttPaho(Thread& thread)
     : Mqtt(thread),
-      _reportTimer(thread, 1, 1000, true),
-      _keepAliveTimer(thread) {
+      _reportTimer(thread, 1000, true, "mqtt.report"),
+      _keepAliveTimer(thread, "mqtt.keepAlive") {
   incoming.async(thread);
 }
 //________________________________________________________________________
