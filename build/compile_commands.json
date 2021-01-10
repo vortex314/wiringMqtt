@@ -1,7 +1,0 @@
-[
-{
-  "directory": "/home/lieven/workspace/wiringMqtt/build",
-  "command": "/bin/x86_64-linux-gnu-g++-9  -DLINUX -I../src -I../../limero/inc -I../../limero/linux -I../../ArduinoJson/src -I../../paho.mqtt.c/src  -g   -o CMakeFiles/wiringMqtt.dir/src/Main.cpp.o -c /home/lieven/workspace/wiringMqtt/src/Main.cpp",
-  "file": "/home/lieven/workspace/wiringMqtt/src/Main.cpp"
-}
-]

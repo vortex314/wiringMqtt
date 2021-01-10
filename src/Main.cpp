@@ -80,7 +80,7 @@ int main(int argc, char **argv)
   Sys::init();
   JsonObject mqttConfig = jsonDoc.to<JsonObject>();
   mqttConfig["device"] = "brain";
-  mqttConfig["connection"] = "tcp://localhost";
+  mqttConfig["connection"] = "tcp://limero.ddns.net";
   mqtt.config(mqttConfig);
   mqtt.init();
   mqtt.connect();
