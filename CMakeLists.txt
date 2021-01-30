@@ -15,4 +15,4 @@ include(CPack)
 
 add_definitions(${GCC_FLAGS})
 include_directories(src ../limero/inc ../limero/linux  ../ArduinoJson/src ../paho.mqtt.c/src  ../paho.mqtt.c/src)
-target_link_libraries(wiringMqtt -L/home/lieven/workspace/limero/linux/build -llimero -L/home/lieven/workspace/paho.mqtt.c/build/output/ -l:libpaho-mqtt3c.a -lpthread  -lrt  )
+target_link_libraries(wiringMqtt -L/home/lieven/workspace/limero/linux/build -llimero -L/home/lieven/workspace/paho.mqtt.c/build/output/ -l:libpaho-mqtt3c.a -lpthread  -lrt  -latomic)

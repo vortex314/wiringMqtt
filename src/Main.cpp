@@ -5,34 +5,28 @@
 #include <math.h>
 #include <stdio.h>
 #include <unistd.h>
-class Poller
-{
-public:
+class Poller {
+ public:
   TimerSource _clock;
   int _idx;
   std::vector<Requestable *> _requestables;
 
   Poller(Thread &thread, uint32_t interval)
-      : _clock(thread, interval, true, "main.poller")
-  {
+      : _clock(thread, interval, true, "main.poller") {
     _clock >> [&](const TimerMsg &t) {
-      if (_requestables.size())
-      {
+      if (_requestables.size()) {
         _idx++;
-        if (_idx >= _requestables.size())
-          _idx = 0;
+        if (_idx >= _requestables.size()) _idx = 0;
         _requestables.at(_idx)->request();
       };
     };
   };
-  void operator>>(Requestable &requestee)
-  {
+  void operator>>(Requestable &requestee) {
     _requestables.push_back(&requestee);
   }
 };
 
-int scale(int &out, const int &js)
-{
+int scale(int &out, const int &js) {
   out = (js * 90) / 32767;
   return 0;
   /*  static int lastValue = 0;
@@ -53,34 +47,54 @@ Poller poller(mainThread, 1000);
 LambdaSource<uint64_t> systemTime([]() { return Sys::millis(); });
 LambdaSource<std::string> systemCpu([]() { return Sys::cpu(); });
 
-class EchoTest : public Actor
-{
-public:
+class EchoTest : public Actor {
+ public:
   TimerSource trigger;
   ValueSource<uint64_t> counter;
   uint64_t startTime;
-  EchoTest(Thread &thread) : Actor(thread), trigger(thread, 1000, true, "trigger"){};
-  void init()
-  {
+  EchoTest(Thread &thread)
+      : Actor(thread), trigger(thread, 1000, true, "trigger"){};
+  void init() {
     trigger >> [&](const TimerMsg &tm) {
       INFO(" send ");
       counter = Sys::millis();
     };
     counter >> mqtt.toTopic<uint64_t>("echo/output");
-    mqtt.fromTopic<uint64_t>("src/brain/echo/output") >> [&](const uint64_t in) {
-      INFO(" it took %lu msec ", Sys::millis()-in);
-    };
+    mqtt.fromTopic<uint64_t>("src/brain/echo/output") >>
+        [&](const uint64_t in) {
+          INFO(" it took %lu msec ", Sys::millis() - in);
+        };
   }
 };
 
 EchoTest echoTest(mainThread);
 
-int main(int argc, char **argv)
-{
+class RisingEdge : public LambdaFlow<int, int> {
+  int _lastValue = 0;
+  int _outValue;
+
+ public:
+  RisingEdge(int x) : LambdaFlow(), _outValue(x) {
+    lambda([&](int &out, const int &in) {
+      if (in > _lastValue) {
+        out = _outValue;
+        _lastValue = in;
+        return 0;
+      } else {
+        _lastValue = in;
+        return ENODATA;
+      }
+    });
+  }
+};
+
+RisingEdge startEdge(1), stopEdge(0);
+
+int main(int argc, char **argv) {
   Sys::init();
   JsonObject mqttConfig = jsonDoc.to<JsonObject>();
   mqttConfig["device"] = "brain";
-  mqttConfig["connection"] = "tcp://limero.ddns.net";
+  mqttConfig["connection"] = "tcp://localhost";
   mqtt.config(mqttConfig);
   mqtt.init();
   mqtt.connect();
@@ -90,16 +104,11 @@ int main(int argc, char **argv)
   poller >> systemCpu;
   systemTime >> mqtt.toTopic<uint64_t>("system/upTime");
   systemCpu >> mqtt.toTopic<std::string>("system/cpu");
-/*
-  mqtt.fromTopic<int>("src/pcdell/js0/axis0") >>
-      Cache<int>::nw(mainThread, 100, 500) >>
-      //      LambdaFlow<int, int>::nw([](const int& in) { return in; }) >>
-      LambdaFlow<int, int>::nw(scale) >>
-      mqtt.toTopic<int>("dst/drive/stepper/angleTarget");*/
 
-  mqtt.connected >> [](const bool &b) {
-   /* if (b)
-      mqtt.subscribe("src/brain/echo/output");*/
-  };
+  mqtt.fromTopic<int>("src/joystick/button/11") >> startEdge >>
+      mqtt.toTopic<int>("dst/gpio/gpio2/value");
+  mqtt.fromTopic<int>("src/joystick/button/3") >> stopEdge >>
+      mqtt.toTopic<int>("dst/gpio/gpio2/value");
+
   mainThread.run();
 }
