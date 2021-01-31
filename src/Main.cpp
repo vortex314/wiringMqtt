@@ -26,9 +26,9 @@ class Poller {
   }
 };
 
-int scale(int &out, const int &js) {
+bool scale(int &out, const int &js) {
   out = (js * 90) / 32767;
-  return 0;
+  return true;
   /*  static int lastValue = 0;
 
     if (js > 0) lastValue += 5;
@@ -46,7 +46,7 @@ Poller poller(mainThread, 1000);
 
 LambdaSource<uint64_t> systemTime([]() { return Sys::millis(); });
 LambdaSource<std::string> systemCpu([]() { return Sys::cpu(); });
-
+/*
 class EchoTest : public Actor {
  public:
   TimerSource trigger;
@@ -67,7 +67,67 @@ class EchoTest : public Actor {
   }
 };
 
-EchoTest echoTest(mainThread);
+EchoTest echoTest(mainThread);*/
+
+/*
+  load configuration file into JsonObject
+*/
+bool loadConfig(JsonDocument &doc, const char *name) {
+  FILE *f = fopen(name, "rb");
+  if (f == NULL) {
+    ERROR(" cannot open config file : %s", name);
+    return false;
+  }
+  fseek(f, 0, SEEK_END);
+  long fsize = ftell(f);
+  fseek(f, 0, SEEK_SET); /* same as rewind(f); */
+
+  char *string = (char *)malloc(fsize + 1);
+  fread(string, 1, fsize, f);
+  fclose(f);
+
+  string[fsize] = 0;
+
+  // Deserialize the JSON document
+  DeserializationError error = deserializeJson(doc, string);
+  if (error) {
+    ERROR(" JSON parsing config file : %s failed.", name);
+    return false;
+  }
+  return true;
+}
+/*
+
+*/
+
+void commandArguments(JsonObject config, int argc, char **argv) {
+  int opt;
+
+  while ((opt = getopt(argc, argv, "f:m:l:v:")) != -1) {
+    switch (opt) {
+      case 'm':
+        config["mqtt"]["connection"] = optarg;
+        break;
+      case 'f':
+        config["configFile"] = optarg;
+        break;
+      case 'v': {
+        char logLevel = optarg[0];
+        config["log"]["level"] = logLevel;
+        break;
+      }
+      case 'l':
+        config["log"]["file"] = optarg;
+        break;
+      default: /* '?' */
+        fprintf(stderr,
+                "Usage: %s [-v(TDIWE)] [-f configFile] [-l logFile] [-m "
+                "mqtt_connection]\n",
+                argv[0]);
+        exit(EXIT_FAILURE);
+    }
+  }
+}
 
 class RisingEdge : public LambdaFlow<int, int> {
   int _lastValue = 0;
@@ -79,36 +139,99 @@ class RisingEdge : public LambdaFlow<int, int> {
       if (in > _lastValue) {
         out = _outValue;
         _lastValue = in;
-        return 0;
+        return true;
       } else {
         _lastValue = in;
-        return ENODATA;
+        return false;
       }
     });
   }
 };
 
+class Integral : public LambdaFlow<int, int> {
+  int _integral = 0;
+  int _min;
+  int _max;
+  int _divider;
+
+ public:
+  Integral(int min, int max, int divider)
+      : LambdaFlow(), _min(min), _max(max), _divider(divider) {
+    lambda([&](int &out, const int &in) {
+      int v = in / _divider;
+      _integral += v;
+      if (_integral < _min)
+        _integral = _min;
+      else if (_integral > _max)
+        _integral = _max;
+      out = _integral;
+      return true;
+    });
+  }
+};
+
 RisingEdge startEdge(1), stopEdge(0);
+Integral steerIntegral(-90, 90, 8000);  // input values -32767 -> 32767
+Integral speedIntegral(-1, 4, 16000);   // input values -32767 -> 32767
+
+LambdaFlow<int, int> scaleAngle([](int &out, const int &in) {
+  out = (in * 90) / 32767;
+  return true;
+});
+
+LambdaFlow<int, int> scaleSpeed([](int &out, const int &in) {
+  out = (in * -400) / 32767;
+  return true;
+});
+#include <LogFile.h>
+LogFile logFile("wiringMqtt", 5, 2000000);
 
 int main(int argc, char **argv) {
   Sys::init();
-  JsonObject mqttConfig = jsonDoc.to<JsonObject>();
-  mqttConfig["device"] = "brain";
-  mqttConfig["connection"] = "tcp://localhost";
+  commandArguments(jsonDoc.as<JsonObject>(), argc, argv);
+  if (loadConfig(jsonDoc, "wiringMqtt.json")) {
+    std::string jsonString;
+    serializeJsonPretty(jsonDoc, jsonString);
+    INFO(" config loaded : %s ", jsonString.c_str());
+  }
+  JsonObject config = jsonDoc["log"];
+  std::string level = config["level"] | "I";
+  logger.setLogLevel(level[0]);
+  if (config["file"]) {
+    std::string prefix = config["file"];
+    logFile.prefix(prefix.c_str());
+    logger.writer(
+        [](char *line, unsigned int length) { logFile.append(line, length); });
+    if (config["console"]) {
+      bool consoleOn = config["console"];
+      logFile.console(consoleOn);
+    }
+  }
+
+  INFO(" wiringMqtt started. Build : %s ", __DATE__ " " __TIME__);
+
+  JsonObject mqttConfig = jsonDoc["mqtt"];
   mqtt.config(mqttConfig);
   mqtt.init();
   mqtt.connect();
-  echoTest.init();
+  // echoTest.init();
 
   poller >> systemTime;
   poller >> systemCpu;
   systemTime >> mqtt.toTopic<uint64_t>("system/upTime");
   systemCpu >> mqtt.toTopic<std::string>("system/cpu");
-
+  // power on PS PC
   mqtt.fromTopic<int>("src/joystick/button/11") >> startEdge >>
       mqtt.toTopic<int>("dst/gpio/gpio2/value");
+
   mqtt.fromTopic<int>("src/joystick/button/3") >> stopEdge >>
       mqtt.toTopic<int>("dst/gpio/gpio2/value");
+  // joystick angle and speed
+  mqtt.fromTopic<int>("src/joystick/axis/0") >> scaleAngle >>
+      mqtt.toTopic<int>("dst/drive/stepper/angleTarget");
+
+  mqtt.fromTopic<int>("src/joystick/axis/1") >> scaleSpeed >>
+      mqtt.toTopic<int>("dst/motor/motor/rpmTarget");
 
   mainThread.run();
 }

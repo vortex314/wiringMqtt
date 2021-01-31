@@ -1,0 +1,18 @@
+{
+    "mqtt": {
+        "connection": "tcp://localhost",
+        "keepAliveInterval": 5,
+        "device": "wiring",
+        "LW": {
+            "topic": "src/wiring/system/alive",
+            "message": "false",
+            "qos": 1,
+            "retain": true
+        }
+    },
+    "log": {
+        "level": "I",
+        "file": "log_wiringMqtt.",
+        "console": true
+    }
+}

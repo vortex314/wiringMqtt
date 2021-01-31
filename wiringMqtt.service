@@ -1,0 +1,15 @@
+[Unit]
+Description=Wiring MQTT topics together
+After=network.target
+StartLimitIntervalSec=0
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+User=root
+Group=root
+ExecStart=/home/lieven/workspace/wiringMqtt/build/wiringMqtt
+WorkingDirectory=/home/lieven/workspace/wiringMqtt
+
+[Install]
+WantedBy=multi-user.target

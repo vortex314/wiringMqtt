@@ -6,7 +6,7 @@ project(wiringMqtt VERSION 0.1.0)
 include(CTest)
 enable_testing()
 
-add_executable(wiringMqtt  src/Main.cpp  ) 
+add_executable(wiringMqtt  src/Main.cpp src/LogFile.cpp) 
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
