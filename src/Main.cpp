@@ -26,6 +26,11 @@ Poller poller(mainThread);
 
 LambdaSource<uint64_t> systemTime([]() { return Sys::millis(); });
 LambdaSource<std::string> systemCpu([]() { return Sys::cpu(); });
+LambdaSource<std::string> systemHost([]() {
+  char nameBuffer[256];
+  gethostname(nameBuffer, 255);
+  return std::string(nameBuffer);
+});
 /*
 class EchoTest : public Actor {
  public:
@@ -166,7 +171,19 @@ LambdaFlow<int, int> scaleSpeed([](int &out, const int &in) {
 #include <LogFile.h>
 LogFile logFile("wiringMqtt", 5, 2000000);
 Thread workerThread("worker");
-TimerSource ticker(workerThread, 10000, true, "ticker");
+TimerSource ticker(workerThread, 20000, true, "ticker");
+#include <sys/time.h>
+int timeOfDay() {
+  struct timeval tv;
+  struct timezone tz;
+  time_t t;
+  struct tm *info;
+
+  gettimeofday(&tv, NULL);
+  t = tv.tv_sec;
+  info = localtime(&t);
+  return (info->tm_hour * 100) + info->tm_min;
+}
 
 int main(int argc, char **argv) {
   Sys::init();
@@ -197,11 +214,13 @@ int main(int argc, char **argv) {
   mqtt.init();
   mqtt.connect();
   // echoTest.init();
-
   poller >> systemTime;
   poller >> systemCpu;
+  poller >> systemHost;
+  mqtt.connected >> poller.connected;
   systemTime >> mqtt.toTopic<uint64_t>("system/upTime");
   systemCpu >> mqtt.toTopic<std::string>("system/cpu");
+  systemHost >> mqtt.toTopic<std::string>("system/host");
 #ifdef JOYSTICK
   // power on PS PC
   mqtt.fromTopic<int>("src/joystick/button/11") >> startEdge >>
@@ -221,8 +240,9 @@ int main(int argc, char **argv) {
   shake >> mqtt.toTopic<bool>("dst/treeshaker/shaker/shake");
 
   ticker >> [&shake](const TimerMsg &) {
-    INFO("let's shake it");
-    shake = true;
+    int now = timeOfDay();
+    INFO("let's shake it %d ", now);
+    if (now > 529 && now < 2200) shake = true;
   };
   workerThread.start();
   mainThread.run();
