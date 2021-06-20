@@ -6,7 +6,7 @@
                 "${workspaceFolder}/../Common/",
                 "${workspaceFolder}/../ArduinoJson/src/",
                 "${workspaceFolder}/../paho.mqtt.c/src/",
-                "${workspaceFolder}/../nanoAkka/main/",
+                "${workspaceFolder}/../limero/inc/",
                 "${workspaceFolder}/src/"
             ],
             "defines": [

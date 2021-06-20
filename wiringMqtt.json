@@ -1,6 +1,6 @@
 {
     "mqtt": {
-        "connection": "tcp://localhost",
+        "connection": "tcp://limero.ddns.net",
         "keepAliveInterval": 5,
         "device": "wiring",
         "LW": {

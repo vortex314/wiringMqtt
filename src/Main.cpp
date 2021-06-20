@@ -165,6 +165,8 @@ LambdaFlow<int, int> scaleSpeed([](int &out, const int &in) {
 });
 #include <LogFile.h>
 LogFile logFile("wiringMqtt", 5, 2000000);
+Thread workerThread("worker");
+TimerSource ticker(workerThread, 10000, true, "ticker");
 
 int main(int argc, char **argv) {
   Sys::init();
@@ -200,6 +202,7 @@ int main(int argc, char **argv) {
   poller >> systemCpu;
   systemTime >> mqtt.toTopic<uint64_t>("system/upTime");
   systemCpu >> mqtt.toTopic<std::string>("system/cpu");
+#ifdef JOYSTICK
   // power on PS PC
   mqtt.fromTopic<int>("src/joystick/button/11") >> startEdge >>
       mqtt.toTopic<int>("dst/gpio/gpio2/value");
@@ -212,6 +215,15 @@ int main(int argc, char **argv) {
 
   mqtt.fromTopic<int>("src/joystick/axis/1") >> scaleSpeed >>
       mqtt.toTopic<int>("dst/motor/motor/rpmTarget");
+#endif
+  ValueSource<bool> shake;
+  shake >> mqtt.toTopic<bool>("dst/shaker1/shaker/shake");
+  shake >> mqtt.toTopic<bool>("dst/treeshaker/shaker/shake");
 
+  ticker >> [&shake](const TimerMsg &) {
+    INFO("let's shake it");
+    shake = true;
+  };
+  workerThread.start();
   mainThread.run();
 }
