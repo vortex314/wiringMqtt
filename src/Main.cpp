@@ -5,26 +5,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <unistd.h>
-class Poller {
- public:
-  TimerSource _clock;
-  int _idx;
-  std::vector<Requestable *> _requestables;
-
-  Poller(Thread &thread, uint32_t interval)
-      : _clock(thread, interval, true, "main.poller") {
-    _clock >> [&](const TimerMsg &t) {
-      if (_requestables.size()) {
-        _idx++;
-        if (_idx >= _requestables.size()) _idx = 0;
-        _requestables.at(_idx)->request();
-      };
-    };
-  };
-  void operator>>(Requestable &requestee) {
-    _requestables.push_back(&requestee);
-  }
-};
 
 bool scale(int &out, const int &js) {
   out = (js * 90) / 32767;
@@ -42,7 +22,7 @@ Log logger(2048);
 Thread mainThread("main");
 MqttPaho mqtt(mainThread);
 StaticJsonDocument<10240> jsonDoc;
-Poller poller(mainThread, 1000);
+Poller poller(mainThread);
 
 LambdaSource<uint64_t> systemTime([]() { return Sys::millis(); });
 LambdaSource<std::string> systemCpu([]() { return Sys::cpu(); });
