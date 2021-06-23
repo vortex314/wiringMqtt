@@ -2,7 +2,7 @@
     "mqtt": {
         "connection": "tcp://limero.ddns.net",
         "keepAliveInterval": 5,
-        "device": "wiring",
+        "device": "shakerBrain",
         "LW": {
             "topic": "src/wiring/system/alive",
             "message": "false",

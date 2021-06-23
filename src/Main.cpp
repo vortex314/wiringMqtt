@@ -241,8 +241,12 @@ int main(int argc, char **argv) {
 
   ticker >> [&shake](const TimerMsg &) {
     int now = timeOfDay();
-    INFO("let's shake it %d ", now);
-    if (now > 529 && now < 2200) shake = true;
+    if (now > 529 && now < 2200) {
+      INFO("let's shake it %d ", now);
+      shake = true;
+    } else {
+      INFO(" sleeping.... ");
+    }
   };
   workerThread.start();
   mainThread.run();
