@@ -171,7 +171,7 @@ LambdaFlow<int, int> scaleSpeed([](int &out, const int &in) {
 #include <LogFile.h>
 LogFile logFile("wiringMqtt", 5, 2000000);
 Thread workerThread("worker");
-TimerSource ticker(workerThread, 20000, true, "ticker");
+TimerSource ticker(workerThread, 300000, true, "ticker");
 #include <sys/time.h>
 int timeOfDay() {
   struct timeval tv;
